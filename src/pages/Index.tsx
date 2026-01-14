@@ -4,17 +4,22 @@ import { Header } from '@/components/Header';
 import { InputPanel } from '@/components/InputPanel';
 import { TimelineView } from '@/components/TimelineView';
 import { QuickAdjustPanel } from '@/components/QuickAdjustPanel';
+import { AuthForm } from '@/components/AuthForm';
 import { useRoutine } from '@/hooks/use-routine';
+import { useAuth } from '@/contexts/AuthContext';
 import { Activity } from '@/types/routine';
-import { Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 const Index = () => {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  
   const {
     input,
     activities,
     isGenerating,
     isLoading,
+    isSaving,
     hasUnsavedChanges,
     updateInput,
     addFixedCommitment,
@@ -40,6 +45,23 @@ const Index = () => {
       setMobilePanel('adjust');
     }
   };
+
+  // Show loading while checking auth
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth form if not logged in
+  if (!user) {
+    return <AuthForm />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -140,6 +162,7 @@ const Index = () => {
             <QuickAdjustPanel
               selectedActivity={selectedActivity}
               hasUnsavedChanges={hasUnsavedChanges}
+              isSaving={isSaving}
               onUpdateActivity={updateActivity}
               onDeleteActivity={deleteActivity}
               onAddActivity={addActivity}
@@ -205,6 +228,7 @@ const Index = () => {
               <QuickAdjustPanel
                 selectedActivity={selectedActivity}
                 hasUnsavedChanges={hasUnsavedChanges}
+                isSaving={isSaving}
                 onUpdateActivity={updateActivity}
                 onDeleteActivity={deleteActivity}
                 onAddActivity={addActivity}

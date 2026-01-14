@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Activity, RoutineInput, FixedCommitment, ActivityCategory } from '@/types/routine';
-import { routineService } from '@/services/routine-service';
+import { routineService, DbRoutine } from '@/services/routine-service';
 import { generateActivityId } from '@/lib/activity-utils';
 import { sortActivitiesByTime } from '@/lib/time-utils';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 const defaultInput: RoutineInput = {
   dayStartTime: '06:00',
@@ -15,37 +16,54 @@ const defaultInput: RoutineInput = {
 
 export function useRoutine() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [input, setInput] = useState<RoutineInput>(defaultInput);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [currentRoutine, setCurrentRoutine] = useState<DbRoutine | null>(null);
 
-  // Load saved data on mount
+  // Load data from Supabase when user is authenticated
   useEffect(() => {
-    const loadSavedData = async () => {
+    const loadData = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        const [savedRoutine, savedInput] = await Promise.all([
-          routineService.loadRoutine(),
-          routineService.loadInputPreferences(),
-        ]);
+        const routine = await routineService.getOrCreateRoutine(user.id);
+        
+        if (routine) {
+          setCurrentRoutine(routine);
+          
+          // Update input with routine times
+          setInput(prev => ({
+            ...prev,
+            dayStartTime: routine.start_time.slice(0, 5),
+            dayEndTime: routine.end_time.slice(0, 5),
+          }));
 
-        if (savedInput) {
-          setInput(savedInput);
-        }
-
-        if (savedRoutine) {
-          setActivities(savedRoutine.activities);
+          // Load activities
+          const loadedActivities = await routineService.getActivities(routine.id);
+          setActivities(loadedActivities);
         }
       } catch (error) {
-        console.error('Error loading saved data:', error);
+        console.error('Error loading data:', error);
+        toast({
+          title: 'Erro ao carregar dados',
+          description: 'Não foi possível carregar suas rotinas.',
+          variant: 'destructive',
+        });
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadSavedData();
-  }, []);
+    loadData();
+  }, [user, toast]);
 
   // Update input fields
   const updateInput = useCallback((updates: Partial<RoutineInput>) => {
@@ -115,12 +133,11 @@ export function useRoutine() {
     setHasUnsavedChanges(true);
   }, []);
 
-  // Generate routine (will call AI service)
+  // Generate routine (calls AI service)
   const generateRoutine = useCallback(async () => {
     setIsGenerating(true);
     
     try {
-      // Call the edge function to generate routine
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-routine`, {
         method: 'POST',
         headers: {
@@ -138,12 +155,13 @@ export function useRoutine() {
       const data = await response.json();
       const generatedActivities = data.activities as Activity[];
       
-      setActivities(sortActivitiesByTime(generatedActivities) as Activity[]);
+      const sortedActivities = sortActivitiesByTime(generatedActivities) as Activity[];
+      setActivities(sortedActivities);
       setHasUnsavedChanges(true);
       
       toast({
         title: 'Rotina gerada!',
-        description: 'Sua rotina foi criada com sucesso. Você pode ajustá-la como preferir.',
+        description: 'Sua rotina foi criada. Clique em "Salvar" para persistir as alterações.',
       });
     } catch (error) {
       console.error('Error generating routine:', error);
@@ -158,58 +176,107 @@ export function useRoutine() {
   }, [input, toast]);
 
   // Update activity
-  const updateActivity = useCallback((id: string, updates: Partial<Activity>) => {
+  const updateActivity = useCallback(async (id: string, updates: Partial<Activity>) => {
+    // Update local state immediately
     setActivities(prev => 
       prev.map(activity => 
         activity.id === id ? { ...activity, ...updates } : activity
       )
     );
-    setHasUnsavedChanges(true);
-  }, []);
+    
+    // Update in database
+    const success = await routineService.updateActivity(id, updates);
+    if (!success) {
+      toast({
+        title: 'Erro ao atualizar',
+        description: 'Não foi possível salvar a alteração.',
+        variant: 'destructive',
+      });
+    }
+  }, [toast]);
 
   // Delete activity
-  const deleteActivity = useCallback((id: string) => {
+  const deleteActivity = useCallback(async (id: string) => {
+    // Update local state immediately
     setActivities(prev => prev.filter(activity => activity.id !== id));
-    setHasUnsavedChanges(true);
-    toast({
-      title: 'Atividade removida',
-      description: 'A atividade foi excluída da sua rotina.',
-    });
+    
+    // Delete from database
+    const success = await routineService.deleteActivity(id);
+    if (success) {
+      toast({
+        title: 'Atividade removida',
+        description: 'A atividade foi excluída da sua rotina.',
+      });
+    } else {
+      toast({
+        title: 'Erro ao remover',
+        description: 'Não foi possível excluir a atividade.',
+        variant: 'destructive',
+      });
+    }
   }, [toast]);
 
   // Add new activity manually
-  const addActivity = useCallback((activity: Omit<Activity, 'id' | 'order'>) => {
-    const newActivity: Activity = {
+  const addActivity = useCallback(async (activity: Omit<Activity, 'id' | 'order'>) => {
+    if (!currentRoutine) return;
+
+    const newActivity = await routineService.addActivity(currentRoutine.id, {
       ...activity,
-      id: generateActivityId(),
       order: activities.length,
-    };
-    setActivities(prev => sortActivitiesByTime([...prev, newActivity]) as Activity[]);
-    setHasUnsavedChanges(true);
-    toast({
-      title: 'Atividade adicionada',
-      description: 'A nova atividade foi incluída na sua rotina.',
     });
-  }, [activities.length, toast]);
+
+    if (newActivity) {
+      setActivities(prev => sortActivitiesByTime([...prev, newActivity]) as Activity[]);
+      toast({
+        title: 'Atividade adicionada',
+        description: 'A nova atividade foi incluída na sua rotina.',
+      });
+    } else {
+      toast({
+        title: 'Erro ao adicionar',
+        description: 'Não foi possível adicionar a atividade.',
+        variant: 'destructive',
+      });
+    }
+  }, [activities.length, currentRoutine, toast]);
 
   // Reorder activities (for drag and drop)
-  const reorderActivities = useCallback((newOrder: Activity[]) => {
-    setActivities(newOrder.map((activity, index) => ({ ...activity, order: index })));
-    setHasUnsavedChanges(true);
+  const reorderActivities = useCallback(async (newOrder: Activity[]) => {
+    const reorderedActivities = newOrder.map((activity, index) => ({ ...activity, order: index }));
+    setActivities(reorderedActivities);
+    
+    // Update order in database
+    await routineService.updateActivityOrder(reorderedActivities);
   }, []);
 
-  // Save routine
+  // Save routine to database
   const saveRoutine = useCallback(async () => {
+    if (!currentRoutine || !user) return;
+
+    setIsSaving(true);
     try {
-      await Promise.all([
-        routineService.saveRoutine(activities),
-        routineService.saveInputPreferences(input),
-      ]);
-      setHasUnsavedChanges(false);
-      toast({
-        title: 'Rotina salva!',
-        description: 'Suas alterações foram salvas com sucesso.',
+      // Update routine times
+      await routineService.updateRoutine(currentRoutine.id, {
+        start_time: input.dayStartTime,
+        end_time: input.dayEndTime,
       });
+
+      // Save all activities
+      const success = await routineService.saveActivities(currentRoutine.id, activities);
+      
+      if (success) {
+        setHasUnsavedChanges(false);
+        toast({
+          title: 'Rotina salva!',
+          description: 'Suas alterações foram salvas com sucesso.',
+        });
+
+        // Reload activities to get server-generated IDs
+        const reloadedActivities = await routineService.getActivities(currentRoutine.id);
+        setActivities(reloadedActivities);
+      } else {
+        throw new Error('Falha ao salvar atividades');
+      }
     } catch (error) {
       console.error('Error saving routine:', error);
       toast({
@@ -217,8 +284,10 @@ export function useRoutine() {
         description: 'Não foi possível salvar sua rotina. Tente novamente.',
         variant: 'destructive',
       });
+    } finally {
+      setIsSaving(false);
     }
-  }, [activities, input, toast]);
+  }, [activities, currentRoutine, input.dayEndTime, input.dayStartTime, toast, user]);
 
   // Clear routine
   const clearRoutine = useCallback(() => {
@@ -232,6 +301,7 @@ export function useRoutine() {
     activities,
     isGenerating,
     isLoading,
+    isSaving,
     hasUnsavedChanges,
     
     // Input actions
