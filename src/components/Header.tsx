@@ -1,7 +1,11 @@
 import React from 'react';
-import { Clock, Sparkles } from 'lucide-react';
+import { Clock, Sparkles, LogOut } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
 
 export function Header() {
+  const { user, signOut } = useAuth();
+
   return (
     <header className="glass-effect border-b border-border/50 sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
@@ -20,6 +24,23 @@ export function Header() {
               </p>
             </div>
           </div>
+
+          {user && (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground hidden sm:block">
+                {user.email}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={signOut}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sair
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -10,7 +10,8 @@ import {
   Edit3, 
   Clock,
   X,
-  Check
+  Check,
+  Loader2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ import {
 interface QuickAdjustPanelProps {
   selectedActivity: Activity | null;
   hasUnsavedChanges: boolean;
+  isSaving?: boolean;
   onUpdateActivity: (id: string, updates: Partial<Activity>) => void;
   onDeleteActivity: (id: string) => void;
   onAddActivity: (activity: Omit<Activity, 'id' | 'order'>) => void;
@@ -37,6 +39,7 @@ interface QuickAdjustPanelProps {
 export function QuickAdjustPanel({
   selectedActivity,
   hasUnsavedChanges,
+  isSaving = false,
   onUpdateActivity,
   onDeleteActivity,
   onAddActivity,
@@ -100,8 +103,13 @@ export function QuickAdjustPanel({
             onClick={onSaveRoutine}
             size="sm"
             className="bg-primary hover:bg-primary/90"
+            disabled={isSaving}
           >
-            <Save className="w-4 h-4 mr-2" />
+            {isSaving ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4 mr-2" />
+            )}
             Salvar
           </Button>
         )}
