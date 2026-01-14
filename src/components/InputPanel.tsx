@@ -254,7 +254,7 @@ export function InputPanel({
                               {config.label}
                             </div>
                           </SelectItem>
-                        )))}
+                        ))}
                       </SelectContent>
                     </Select>
                     <Button
