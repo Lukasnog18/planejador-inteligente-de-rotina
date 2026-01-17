@@ -6,6 +6,7 @@ export type ActivityCategory =
   | 'personal' 
   | 'meal' 
   | 'sleep' 
+  | 'health'
   | 'other';
 
 export interface Activity {

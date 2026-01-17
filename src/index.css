@@ -203,6 +203,10 @@
     @apply bg-gradient-to-br from-indigo-400/90 to-indigo-500/90 text-white;
   }
 
+  .activity-block-health {
+    @apply bg-gradient-to-br from-rose-500/90 to-rose-600/90 text-white;
+  }
+
   .activity-block-other {
     @apply bg-gradient-to-br from-slate-500/90 to-slate-600/90 text-white;
   }
