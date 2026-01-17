@@ -7,6 +7,7 @@ import {
   User, 
   UtensilsCrossed, 
   Moon,
+  Heart,
   MoreHorizontal,
   LucideIcon
 } from 'lucide-react';
@@ -53,6 +54,11 @@ export const categoryConfig: Record<ActivityCategory, CategoryConfig> = {
     icon: Moon,
     className: 'activity-block-sleep',
   },
+  health: {
+    label: 'Saúde',
+    icon: Heart,
+    className: 'activity-block-health',
+  },
   other: {
     label: 'Outro',
     icon: MoreHorizontal,
@@ -65,7 +71,7 @@ export function getCategoryLabel(category: ActivityCategory): string {
 }
 
 export function getCategoryIcon(category: ActivityCategory): LucideIcon {
-  return categoryConfig[category]?.icon ?? MoreHorizontal;
+  return categoryConfig[category]?.icon ?? categoryConfig.other.icon;
 }
 
 export function getCategoryClassName(category: ActivityCategory): string {

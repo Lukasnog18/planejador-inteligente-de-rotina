@@ -30,7 +30,7 @@ export function ActivityBlock({ activity, isSelected, onSelect, onDelete }: Acti
     transition,
   };
 
-  const config = categoryConfig[activity.category];
+  const config = categoryConfig[activity.category] ?? categoryConfig.other;
   const Icon = config.icon;
   const duration = getDurationInMinutes(activity.startTime, activity.endTime);
 
