@@ -135,7 +135,7 @@ export function RoutinePlanner() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.3, delay: 0.2 }}
-            className="col-span-3"
+            className="col-span-3 h-fit max-h-[calc(100vh-140px)] sticky top-6"
           >
             <QuickAdjustPanel
               selectedActivity={selectedActivity}
