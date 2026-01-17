@@ -92,7 +92,7 @@ export function QuickAdjustPanel({
     : null;
 
   return (
-    <div className="panel-card p-6 h-full flex flex-col">
+    <div className="panel-card p-6 flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold flex items-center gap-2">
           <Edit3 className="w-5 h-5 text-primary" />
@@ -352,7 +352,7 @@ export function QuickAdjustPanel({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="h-full flex flex-col items-center justify-center text-center px-4"
+              className="flex flex-col items-center text-center px-4 pt-4"
             >
               <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-4">
                 <Edit3 className="w-6 h-6 text-muted-foreground" />
